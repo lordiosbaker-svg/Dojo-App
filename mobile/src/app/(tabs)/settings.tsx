@@ -15,7 +15,11 @@ import {
   Zap,
 } from 'lucide-react-native';
 import { useDojoStore, getTodayKey, TEXT_SCALE } from '@/lib/state/dojo-store';
-import type { TextSize, BlockType } from '@/lib/state/dojo-store';
+import type { TextSize, BlockType, Language } from '@/lib/state/dojo-store';
+import { useTranslation } from '@/lib/i18n';
+import { LANGUAGE_NAMES } from '@/lib/i18n/translations';
+
+const LANGUAGES: Language[] = ['en', 'es', 'fr', 'de', 'pt', 'ar'];
 
 const TIMER_LIMITS: Record<BlockType, { min: number; max: number; step: number }> = {
   morning: { min: 5, max: 180, step: 5 },
@@ -50,10 +54,14 @@ export default function SettingsScreen() {
   const textSize         = useDojoStore((s) => s.textSize);
   const timerDurations   = useDojoStore((s) => s.timerDurations);
   const simpleMode       = useDojoStore((s) => s.simpleMode);
+  const language         = useDojoStore((s) => s.language);
 
   const setTextSize      = useDojoStore((s) => s.setTextSize);
   const setTimerDuration = useDojoStore((s) => s.setTimerDuration);
   const toggleSimpleMode = useDojoStore((s) => s.toggleSimpleMode);
+  const setLanguage      = useDojoStore((s) => s.setLanguage);
+
+  const t = useTranslation();
 
   const [confirmReset, setConfirmReset] = useState<boolean>(false);
 
@@ -180,6 +188,36 @@ export default function SettingsScreen() {
             ]} />
           </View>
         </Pressable>
+
+        {/* ── Language ── */}
+        <Text style={[styles.sectionTitle, { fontSize: 12 * scale }]}>{t.settings.sections.language}</Text>
+        <View style={styles.card}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.langPillsRow}
+          >
+            {LANGUAGES.map((lang) => (
+              <Pressable
+                key={lang}
+                testID={`language-pill-${lang}`}
+                onPress={() => setLanguage(lang)}
+                style={[
+                  styles.langPill,
+                  language === lang && styles.langPillActive,
+                ]}
+              >
+                <Text style={[
+                  styles.langPillText,
+                  language === lang && styles.langPillTextActive,
+                  { fontSize: 14 * scale },
+                ]}>
+                  {LANGUAGE_NAMES[lang]}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
 
         {/* ── Text Size ── */}
         <Text style={[styles.sectionTitle, { fontSize: 12 * scale }]}>Text Size</Text>
@@ -636,4 +674,30 @@ const styles = StyleSheet.create({
   },
   resetButtonTextConfirm: { color: '#FF4444' },
   bottomSpacer: { height: 20 },
+
+  // Language selector
+  langPillsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 2,
+  },
+  langPill: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: '#12121E',
+    borderWidth: 1,
+    borderColor: '#2A2A40',
+  },
+  langPillActive: {
+    backgroundColor: '#E8C547',
+    borderColor: '#E8C547',
+  },
+  langPillText: {
+    fontWeight: '600',
+    color: '#8888A0',
+  },
+  langPillTextActive: {
+    color: '#0A0A0F',
+  },
 });

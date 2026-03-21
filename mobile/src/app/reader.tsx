@@ -148,13 +148,13 @@ export default function ReaderScreen() {
           ) : null}
 
           {/* Glossary entries — use translated terms/simple if available */}
-          {content.entries.map((entry, _index) => {
-            const tEntry = t.glossary.entries.find((e) => e.term === entry.term);
+          {content.entries.map((entry, index) => {
+            const tEntry = t.glossary.entries[index];
             const displayTerm   = tEntry?.term   ?? entry.term;
             const displaySimple = tEntry?.simple ?? entry.simple;
             return (
             <View
-              key={entry.term}
+              key={index}
               style={{
                 backgroundColor: "#1C1C2E",
                 borderRadius: 14,
@@ -173,13 +173,13 @@ export default function ReaderScreen() {
                   lineHeight: 22 * scale,
                 }}
               >
-                {entry.term}
+                {displayTerm}
               </Text>
 
               {simpleMode ? (
                 /* Simple mode: only show short definition */
                 <Text style={{ color: "#E8E8F0", fontSize: 14 * scale, lineHeight: 22 * scale }}>
-                  {entry.simple}
+                  {displaySimple}
                 </Text>
               ) : (
                 /* Full mode: show simple as intro, full as details */
@@ -193,7 +193,7 @@ export default function ReaderScreen() {
                     }}
                   >
                     <Text style={{ color: "#C8A840", fontSize: 13 * scale, lineHeight: 20 * scale, fontStyle: "italic" }}>
-                      {entry.simple}
+                      {displaySimple}
                     </Text>
                   </View>
                   <Text style={{ color: "#B8B8C8", fontSize: 14 * scale, lineHeight: 23 * scale }}>

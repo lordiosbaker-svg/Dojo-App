@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -66,6 +66,9 @@ export default function JournalScreen() {
   const [promptIndex, setPromptIndex] = useState<number>(0);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
+  // Tracks the speech-contributed portion so new transcript appends to manually typed text
+  const speechBaseRef = useRef<string>("");
+
   const journalEntries  = useDojoStore((s) => s.journalEntries);
   const addJournalEntry = useDojoStore((s) => s.addJournalEntry);
   const deleteJournalEntry = useDojoStore((s) => s.deleteJournalEntry);
@@ -73,10 +76,14 @@ export default function JournalScreen() {
   // Speech recognition
   const speech = useSpeechRecognition();
 
-  // Merge live transcript into input
+  // Merge live transcript into input, appending to any text that was already typed
   useEffect(() => {
-    const combined = [speech.transcript, speech.interimTranscript].filter(Boolean).join(" ");
-    if (combined) setInputText(combined);
+    const speechPart = [speech.transcript, speech.interimTranscript].filter(Boolean).join(" ");
+    if (speechPart) {
+      const base = speechBaseRef.current;
+      const newText = base ? `${base} ${speechPart}` : speechPart;
+      setInputText(newText);
+    }
   }, [speech.transcript, speech.interimTranscript]);
 
   // Auto-rotate prompts
@@ -96,6 +103,7 @@ export default function JournalScreen() {
     if (trimmed.length === 0) return;
     if (speech.isListening) speech.stop();
     speech.reset();
+    speechBaseRef.current = "";
     addJournalEntry(trimmed);
     setInputText("");
     Keyboard.dismiss();
@@ -104,12 +112,15 @@ export default function JournalScreen() {
   const handleMicToggle = useCallback(() => {
     if (speech.isListening) {
       speech.stop();
+      // Commit whatever speech produced into the base so typing continues from here
+      speechBaseRef.current = inputText;
     } else {
+      // Snapshot existing typed text as the base; speech will append to it
+      speechBaseRef.current = inputText.trimEnd();
       speech.reset();
-      setInputText("");
       speech.start(LANGUAGE_SPEECH_CODE[language]);
     }
-  }, [speech, language]);
+  }, [speech, language, inputText]);
 
   const handleDelete = useCallback((id: string) => {
     deleteJournalEntry(id);
@@ -255,10 +266,11 @@ export default function JournalScreen() {
             <TextInput
               testID="journal-input"
               value={inputText}
-              onChangeText={(text) => { if (!speech.isListening) setInputText(text); }}
+              onChangeText={setInputText}
               placeholder={speech.isListening ? t.journal.mic.listening : t.journal.placeholder}
               placeholderTextColor={COLORS.textMuted}
               multiline
+              autoFocus
               maxLength={500}
               style={{ flex: 1, color: COLORS.textPrimary, fontSize: 15 * scale, paddingVertical: 12, maxHeight: 100 }}
             />
@@ -269,14 +281,16 @@ export default function JournalScreen() {
                 testID="mic-button"
                 onPress={handleMicToggle}
                 style={{
-                  borderRadius: 10, padding: 10, marginLeft: 6,
-                  backgroundColor: speech.isListening ? "#FF6B6B" : COLORS.cardBorder,
+                  borderRadius: 12, padding: 14, marginLeft: 6, minWidth: 48, alignItems: "center", justifyContent: "center",
+                  backgroundColor: speech.isListening ? "#FF6B6B" : COLORS.card,
+                  borderWidth: speech.isListening ? 0 : 1,
+                  borderColor: COLORS.cardBorder,
                 }}
                 accessibilityLabel={speech.isListening ? t.journal.mic.stop : t.journal.mic.start}
               >
                 {speech.isListening
-                  ? <MicOff size={18} color="#FFFFFF" />
-                  : <Mic size={18} color={COLORS.textMuted} />}
+                  ? <MicOff size={22} color="#FFFFFF" />
+                  : <Mic size={22} color={COLORS.accent} />}
               </Pressable>
             ) : null}
 

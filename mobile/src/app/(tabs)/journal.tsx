@@ -11,6 +11,7 @@ import {
   Keyboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "expo-router";
 import { BookOpen, Share2, Send, Trash2, Mic, MicOff } from "lucide-react-native";
 import { useDojoStore, getEntriesForDate, TEXT_SCALE } from "@/lib/state/dojo-store";
 import { useTranslation } from "@/lib/i18n";
@@ -69,12 +70,39 @@ export default function JournalScreen() {
   // Tracks the speech-contributed portion so new transcript appends to manually typed text
   const speechBaseRef = useRef<string>("");
 
+  // Ref for TextInput to allow programmatic focus on tab return
+  const inputRef = useRef<TextInput>(null);
+
   const journalEntries  = useDojoStore((s) => s.journalEntries);
   const addJournalEntry = useDojoStore((s) => s.addJournalEntry);
   const deleteJournalEntry = useDojoStore((s) => s.deleteJournalEntry);
 
   // Speech recognition
   const speech = useSpeechRecognition();
+
+  // Re-focus input and reset stale speech state when the tab gains focus.
+  // Also stop speech recognition on tab leave to avoid stuck state.
+  useFocusEffect(
+    useCallback(() => {
+      // Reset stale speech state when entering screen
+      speechBaseRef.current = "";
+      speech.reset();
+
+      // Re-focus input with small delay to avoid animation conflict
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 300);
+
+      return () => {
+        // Stop speech when leaving screen
+        clearTimeout(timer);
+        if (speech.isListening) {
+          speech.stop();
+        }
+        speech.reset();
+      };
+    }, [speech])
+  );
 
   // Merge live transcript into input, appending to any text that was already typed
   useEffect(() => {
@@ -265,6 +293,7 @@ export default function JournalScreen() {
           }}>
             <TextInput
               testID="journal-input"
+              ref={inputRef}
               value={inputText}
               onChangeText={setInputText}
               placeholder={speech.isListening ? t.journal.mic.listening : t.journal.placeholder}

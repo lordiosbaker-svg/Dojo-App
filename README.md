@@ -7,17 +7,16 @@ A mindfulness and mental training app built with React Native (Expo). Dark-theme
 ## Core Features
 
 ### 1. Daily Dashboard (Home Tab)
-- **Morning Dojo** (60 min): Breathing exercise + Mindfulness with ERN acceptance prompts
-- **Midday Reset** (10 min): Yoga reset + Post-lunch mindfulness
-- **Evening Mastery** (20 min): Tai Chi warm-up + Kata practice + Breathing cool-down
+- **Morning Dojo** (adjustable, default 60 min): Breathing exercise + Mindfulness
+- **Midday Reset** (adjustable, default 10 min): Yoga reset + Post-lunch mindfulness
+- **Evening Mastery** (adjustable, default 20 min): Tai Chi + Kata + Breathing cool-down
 - Streak counter with flame badge
 - Daily mantra display
+- **Simple Mode**: Quick Start guides per block, simplified text
 
 ### 2. Journal Tab
-- One-tap ERN (Error-Related Negativity) logging
-- Rotating ERN reflection prompts
-- Entries grouped by date
-- Long-press to delete entries
+- One-tap ERN logging with rotating reflection prompts
+- Entries grouped by date; long-press to delete
 - Export journal via share sheet
 
 ### 3. Library Tab (Offline Reader)
@@ -26,13 +25,15 @@ A mindfulness and mental training app built with React Native (Expo). Dark-theme
 - PTSD & Population Mapping: Applications for veterans, inmates, and space
 - Daily Mantra: Guiding principle and explanation
 - How + Why Manual: Practical guide to the Dojo method
+- **Glossary**: Plain-English definitions for ACC, ERN, SERP, HOS, R_ACC, Archimedes Point, N-Version Programming, Byzantine Fault Tolerance, and "the struggle itself is the meaning"
 
-### 4. Profile Tab
+### 4. Settings Tab (gear icon)
+- **Simple Mode toggle**: Beginner-friendly view with Quick Start guides and shorter text
+- **Text Size selector**: Small / Medium / Large — persisted locally
+- **Timer Duration controls**: +/− buttons to adjust each block's duration (Morning 5–180 min, Midday 2–60 min, Evening 5–120 min) — persisted locally
 - Streak tracking (current + longest)
 - Stats: journal entries count, blocks completed
-- Export journal data
-- Reset all data
-- App info and privacy philosophy
+- Export journal data / Reset all data
 
 ## Tech Stack
 - **Frontend:** Expo SDK 53, React Native, TypeScript
@@ -40,7 +41,7 @@ A mindfulness and mental training app built with React Native (Expo). Dark-theme
 - **State:** Zustand with AsyncStorage persistence
 - **Animations:** React Native Reanimated
 - **Icons:** Lucide React Native
-- **Storage:** All data local via AsyncStorage
+- **Storage:** All data local via AsyncStorage — 100% offline
 
 ## Mantra
 > "I accept what is. I calibrate what arises. The struggle itself is the meaning."

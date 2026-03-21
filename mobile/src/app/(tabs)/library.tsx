@@ -9,14 +9,17 @@ import {
   Users,
   Heart,
   ChevronRight,
+  BookMarked,
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
+import { useDojoStore, TEXT_SCALE } from '@/lib/state/dojo-store';
 
 interface LibraryItem {
   title: string;
   description: string;
   icon: LucideIcon;
   contentKey: string;
+  accent?: string;
 }
 
 const LIBRARY_ITEMS: LibraryItem[] = [
@@ -50,12 +53,22 @@ const LIBRARY_ITEMS: LibraryItem[] = [
     icon: BookOpen,
     contentKey: 'manual',
   },
+  {
+    title: 'Glossary',
+    description: 'Plain-English definitions: ACC, ERN, HOS, and more',
+    icon: BookMarked,
+    contentKey: 'glossary',
+    accent: '#7B68EE',
+  },
 ];
 
 function LibraryCard({ item }: { item: LibraryItem }) {
   const router = useRouter();
   const scaleAnim = useRef(new RNAnimated.Value(1)).current;
   const Icon = item.icon;
+  const accent = item.accent ?? '#E8C547';
+  const textSize = useDojoStore((s) => s.textSize);
+  const scale = TEXT_SCALE[textSize];
 
   const handlePressIn = useCallback(() => {
     RNAnimated.spring(scaleAnim, {
@@ -95,28 +108,24 @@ function LibraryCard({ item }: { item: LibraryItem }) {
           className="flex-row items-center rounded-2xl overflow-hidden"
           style={{ backgroundColor: '#1C1C2E' }}
         >
-          {/* Gold accent line */}
-          <View
-            className="w-1 self-stretch"
-            style={{ backgroundColor: '#E8C547' }}
-          />
+          {/* Accent line */}
+          <View className="w-1 self-stretch" style={{ backgroundColor: accent }} />
 
           {/* Icon */}
           <View className="pl-4 pr-3 py-5">
-            <Icon size={24} color="#E8C547" />
+            <Icon size={24} color={accent} />
           </View>
 
           {/* Text content */}
           <View className="flex-1 py-5 pr-2">
             <Text
-              className="text-base font-semibold mb-1"
-              style={{ color: '#E8E8F0' }}
+              className="font-semibold mb-1"
+              style={{ color: '#E8E8F0', fontSize: 15 * scale }}
             >
               {item.title}
             </Text>
             <Text
-              className="text-sm"
-              style={{ color: '#8888A0' }}
+              style={{ color: '#8888A0', fontSize: 13 * scale }}
             >
               {item.description}
             </Text>
@@ -133,6 +142,9 @@ function LibraryCard({ item }: { item: LibraryItem }) {
 }
 
 export default function LibraryScreen() {
+  const textSize = useDojoStore((s) => s.textSize);
+  const scale = TEXT_SCALE[textSize];
+
   return (
     <SafeAreaView
       testID="library-screen"
@@ -143,8 +155,8 @@ export default function LibraryScreen() {
       <View className="flex-row items-center px-5 pt-4 pb-6">
         <BookOpen size={28} color="#E8C547" />
         <Text
-          className="text-3xl font-bold ml-3"
-          style={{ color: '#E8E8F0' }}
+          className="font-bold ml-3"
+          style={{ color: '#E8E8F0', fontSize: 28 * scale }}
         >
           Library
         </Text>

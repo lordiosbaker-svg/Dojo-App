@@ -21,6 +21,18 @@ export interface Mantra {
   explanation: string;
 }
 
+export interface GlossaryEntry {
+  term: string;
+  simple: string; // beginner-friendly, one or two sentences
+  full: string;   // detailed explanation
+}
+
+export interface Glossary {
+  title: string;
+  intro: string;
+  entries: GlossaryEntry[];
+}
+
 // ---------------------------------------------------------------------------
 // 1. ACC Paper
 // ---------------------------------------------------------------------------
@@ -218,6 +230,62 @@ export const HOW_AND_WHY_MANUAL: Paper = {
       heading: "Common Questions",
       content:
         "How long before I notice changes? Most practitioners report subjective improvements in stress reactivity and emotional regulation within two to four weeks of consistent daily practice. These early changes reflect functional neural adaptations -- altered activation patterns -- rather than structural changes, which require longer to develop. Measurable improvements in heart rate variability typically appear within four to six weeks. Structural brain changes documented in neuroimaging studies generally require eight to twelve weeks of consistent practice.\n\nDo I need to meditate in silence? No. While silence is ideal for focused attention practice, it is not always available or necessary. Consistent background noise -- a fan, ambient sound, or steady traffic -- is generally not disruptive once you habituate to it. Inconsistent or meaningful sounds, like conversation or television, are more challenging and are best avoided during the early months of practice. Some practitioners find that low-volume instrumental music supports their practice without interfering with attentional training.\n\nWhat if I fall asleep during practice? Falling asleep during meditation or breathing practice is common, especially in the first few weeks, and is not a problem to be solved. It usually indicates sleep deprivation, which is itself useful diagnostic information. If you consistently fall asleep during practice, consider whether your sleep habits need attention before expecting your meditation practice to improve. Practicing with eyes slightly open and in a seated rather than supine position can reduce drowsiness.\n\nCan I substitute other activities for the martial arts component? Yes, with an important caveat. The replacement activity must require precision, proprioceptive awareness, and continuous error monitoring. Dancing, sport-specific drills, rock climbing, and even detailed handwriting or drawing can serve as functional substitutes. Casual walking, stretching without attention to form, or activities performed while distracted do not provide the ACC training stimulus that makes the Evening Block effective.\n\nIs the protocol compatible with therapy or medication? The Dojo protocol is designed to complement, not replace, professional mental health treatment. Mindfulness and movement practices have been shown to enhance the effectiveness of both psychotherapy and psychopharmacological treatment. If you are currently in treatment, share the Dojo protocol with your provider so they can integrate it with your existing care plan. If you experience increased distress, dissociation, or trauma re-experiencing during any practice, stop the practice and consult your provider before resuming.",
+    },
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// 6. Glossary / Terminology Appendix
+// ---------------------------------------------------------------------------
+
+export const GLOSSARY: Glossary = {
+  title: "Glossary & Terminology",
+  intro: "Plain-language definitions for every term used in Dojo. No prior knowledge needed.",
+  entries: [
+    {
+      term: "ACC (Anterior Cingulate Cortex)",
+      simple: "A part of your brain that acts like a quality-control sensor — it notices when something goes wrong and signals you to adjust.",
+      full: "The Anterior Cingulate Cortex is a region near the front of the brain that wraps around the corpus callosum (the bridge between the brain's two halves). It plays three big roles: (1) Error detection — it fires whenever there's a gap between what you meant to do and what actually happened. (2) Emotional regulation — it links the thinking brain to the feeling brain, helping you stay composed under pressure. (3) Attention control — it keeps your focus on task and redirects it when your mind wanders. Daily Dojo practices — breathing, meditation, movement — are specifically designed to strengthen ACC function over time.",
+    },
+    {
+      term: "ERN (Error-Related Negativity)",
+      simple: "A tiny brain signal that fires within a tenth of a second after you make a mistake — before you even know you made one.",
+      full: "The ERN is an electrical signal detectable on an EEG (a device that reads brain activity through the scalp). It appears as a sharp negative spike 50–100 milliseconds after an error, generated by the ACC. Think of it as the brain's instant alarm bell. Importantly, the ERN fires faster than conscious awareness — your brain knows you made a mistake before your mind does. People with high anxiety tend to have an overactive ERN that treats every small slip as a catastrophe. Dojo practice aims to calibrate the ERN so it remains sensitive enough to catch real errors, but not so hair-trigger that it causes spiraling anxiety.",
+    },
+    {
+      term: "SERP (Stress–Error–Response Pattern)",
+      simple: "The loop your brain runs when stress causes mistakes, and mistakes cause more stress — Dojo breaks this cycle.",
+      full: "SERP describes the feedback loop that happens under pressure: stress degrades ACC function → degraded ACC leads to more errors → errors trigger more stress → more stress further degrades ACC. Left unchecked, this spiral can derail performance and well-being. Dojo's three-block daily structure is designed to interrupt SERP at every stage: morning breathing reduces baseline stress, midday reset prevents afternoon accumulation, and evening practice processes the day's errors and restores the system to equilibrium.",
+    },
+    {
+      term: "Archimedes Point",
+      simple: "A moment of clear perspective where you can see your situation from outside the chaos — like stepping back to get the full picture.",
+      full: "Archimedes famously said, 'Give me a lever long enough and a fulcrum on which to place it, and I shall move the world.' His insight was that the right vantage point changes everything. In the Dojo framework, the Archimedes Point is the mental position you reach during meditation and acceptance practice — a stable, grounded place from which you can observe your own thoughts and emotions without being swept away by them. From this point, even intense feelings or errors feel manageable because you are observing them rather than being consumed by them. Breathing and mindfulness practice are tools for finding and returning to this point reliably.",
+    },
+    {
+      term: "HOS (High-Output State)",
+      simple: "The mental zone where focus is sharp, reactions are calm, and you perform at your best — the goal Dojo training builds toward.",
+      full: "HOS refers to a state of optimal physiological and psychological functioning. Physiologically, it is characterized by high heart rate variability (HRV), balanced autonomic tone, and strong prefrontal-ACC connectivity. Psychologically, it feels like clarity, presence, and effortless engagement. Athletes often call it 'the zone.' You cannot force yourself into HOS, but you can train the conditions that make it more accessible. Consistent Dojo practice — especially the morning breathing and evening movement blocks — gradually shifts your nervous system's baseline closer to HOS, making it easier to reach and sustain under pressure.",
+    },
+    {
+      term: "R_ACC (Regulated Anterior Cingulate Cortex)",
+      simple: "A well-trained version of your brain's error sensor — calm enough to work clearly, sharp enough to catch real mistakes.",
+      full: "R_ACC is shorthand for the state of the ACC after consistent calibration training. A regulated ACC has three properties: (1) Accurate detection — it reliably catches genuine errors and misalignments. (2) Proportionate response — the emotional reaction it generates matches the actual severity of the error, not an inflated version. (3) Fast recovery — after generating an error signal, it returns to baseline quickly rather than dwelling in the mistake. R_ACC is the neurobiological target of the Dojo protocol. Over weeks and months of practice, the ACC shifts from a reactive alarm system toward a precision instrument.",
+    },
+    {
+      term: "N-Version Programming",
+      simple: "Running multiple independent versions of the same task so that one mistake doesn't sink the whole system — applied to the brain, it means building multiple mental strategies for resilience.",
+      full: "N-Version Programming is a concept from software engineering: if you run N independent versions of a program in parallel, a single version can fail without crashing the whole system. The surviving versions keep working and can detect the failing one by voting on correct outputs. In the Dojo framework, this idea is applied to human performance: building multiple independent strategies — breathing, movement, journaling, acceptance practice — means that if one strategy is unavailable (you can't meditate today), the others keep the system resilient. No single practice is a single point of failure. The more diverse your calibration toolkit, the more fault-tolerant your mental operating system becomes.",
+    },
+    {
+      term: "Byzantine Fault Tolerance",
+      simple: "The ability of a system to keep working correctly even when some of its parts are sending wrong or contradictory signals — in Dojo terms, staying functional when your emotions are unreliable.",
+      full: "Byzantine Fault Tolerance (BFT) comes from computer science. A system is Byzantine-fault-tolerant if it can reach correct decisions even when some of its components are malfunctioning and sending misleading information. The term comes from a thought experiment called the Byzantine Generals Problem. In the Dojo framework, BFT describes psychological resilience under conditions where your own internal signals may be distorted — by trauma, by fear, by exhaustion, by grief. A calibrated ACC acts as a BFT mechanism: it cross-checks emotional signals against present-moment reality and chooses the most reliable interpretation rather than automatically trusting the loudest internal voice.",
+    },
+    {
+      term: "\"The struggle itself is the meaning\"",
+      simple: "The difficulties you face aren't getting in the way of a meaningful life — they ARE the meaningful life. The challenge is the point.",
+      full: "This phrase is the philosophical core of the Dojo mantra: 'I accept what is. I calibrate what arises. The struggle itself is the meaning.' It draws on the existentialist tradition — particularly Albert Camus, who wrote about finding meaning not despite absurdity and struggle, but through the act of continuing to engage with it. In practical terms, it reframes difficulty: instead of 'when will this get easier so I can start living?', the question becomes 'how fully can I engage with this challenge right now?' Applied to practice, it means that the moment of noticing mind-wander in meditation, or the frustration of a missed form in kata, is not a failure state to push through — it is precisely where the meaningful work happens. The struggle trains the system. Remove the struggle and you remove the training.",
     },
   ],
 };

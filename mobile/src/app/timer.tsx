@@ -4,7 +4,6 @@ import {
   Text,
   Pressable,
   StyleSheet,
-  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
@@ -18,7 +17,7 @@ import Animated, {
 } from "react-native-reanimated";
 import Svg, { Circle } from "react-native-svg";
 import { X, Play, Pause, SkipForward, RotateCcw, Check } from "lucide-react-native";
-import { useDojoStore } from "@/lib/state/dojo-store";
+import { useDojoStore, DEFAULT_TIMER_DURATIONS } from "@/lib/state/dojo-store";
 
 // --- Types ---
 
@@ -26,13 +25,13 @@ type BlockType = "morning" | "midday" | "evening";
 
 interface Phase {
   name: string;
-  duration: number;
+  duration: number; // seconds
   instruction: string;
 }
 
-// --- Phase data ---
+// --- Base phase data (used for ratios only) ---
 
-const BLOCK_PHASES: Record<BlockType, Phase[]> = {
+const BASE_PHASES: Record<BlockType, Phase[]> = {
   morning: [
     {
       name: "Breathing Exercise",
@@ -76,17 +75,47 @@ const BLOCK_PHASES: Record<BlockType, Phase[]> = {
   ],
 };
 
+// Simple mode instructions (gentler)
+const SIMPLE_INSTRUCTIONS: Record<BlockType, string[]> = {
+  morning: [
+    "Breathe in slowly, then out even slower. Just focus on your breath.",
+    "Notice any thoughts or feelings without judging them. Just watch them pass.",
+  ],
+  midday: [
+    "Move gently — a few stretches are perfect. No right or wrong here.",
+    "Sit quietly and take slow, easy breaths. Let your mind rest.",
+  ],
+  evening: [
+    "Move slowly like you're under water. Feel your body.",
+    "Practice your movements carefully and calmly. No rush.",
+    "Breathe out longer than you breathe in. Feel yourself wind down.",
+  ],
+};
+
 const BLOCK_COLORS: Record<BlockType, string> = {
   morning: "#F4A261",
-  midday: "#2EC4B6",
+  midday:  "#2EC4B6",
   evening: "#7B68EE",
 };
 
 const BLOCK_TITLES: Record<BlockType, string> = {
   morning: "Morning Block",
-  midday: "Midday Block",
+  midday:  "Midday Block",
   evening: "Evening Block",
 };
+
+// --- Build phases scaled to custom total duration ---
+
+function buildScaledPhases(blockType: BlockType, customMinutes: number): Phase[] {
+  const base = BASE_PHASES[blockType];
+  const baseTotal = base.reduce((sum, p) => sum + p.duration, 0);
+  const customTotal = customMinutes * 60;
+  const ratio = customTotal / baseTotal;
+  return base.map((p) => ({
+    ...p,
+    duration: Math.max(30, Math.round(p.duration * ratio)),
+  }));
+}
 
 // --- Animated circle ---
 
@@ -94,9 +123,9 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 // --- Constants ---
 
-const CIRCLE_SIZE = 250;
-const STROKE_WIDTH = 8;
-const RADIUS = (CIRCLE_SIZE - STROKE_WIDTH) / 2;
+const CIRCLE_SIZE   = 250;
+const STROKE_WIDTH  = 8;
+const RADIUS        = (CIRCLE_SIZE - STROKE_WIDTH) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 // --- Helpers ---
@@ -113,32 +142,39 @@ export default function TimerScreen() {
   const { blockType: blockTypeParam } = useLocalSearchParams<{ blockType: string }>();
   const blockType: BlockType = (blockTypeParam as BlockType) ?? "morning";
 
-  const phases: Phase[] = BLOCK_PHASES[blockType];
-  const accentColor: string = BLOCK_COLORS[blockType];
-  const blockTitle: string = BLOCK_TITLES[blockType];
-
-  // Store selectors
-  const startTimer = useDojoStore((s) => s.startTimer);
-  const tickTimer = useDojoStore((s) => s.tickTimer);
-  const pauseTimer = useDojoStore((s) => s.pauseTimer);
-  const resumeTimer = useDojoStore((s) => s.resumeTimer);
-  const resetTimerStore = useDojoStore((s) => s.resetTimer);
-  const completeTimer = useDojoStore((s) => s.completeTimer);
-  const completeBlock = useDojoStore((s) => s.completeBlock);
+  // Store
+  const timerDurations = useDojoStore((s) => s.timerDurations);
+  const simpleMode     = useDojoStore((s) => s.simpleMode);
+  const startTimerStore  = useDojoStore((s) => s.startTimer);
+  const tickTimer        = useDojoStore((s) => s.tickTimer);
+  const pauseTimer       = useDojoStore((s) => s.pauseTimer);
+  const resumeTimer      = useDojoStore((s) => s.resumeTimer);
+  const resetTimerStore  = useDojoStore((s) => s.resetTimer);
+  const completeTimer    = useDojoStore((s) => s.completeTimer);
+  const completeBlock    = useDojoStore((s) => s.completeBlock);
   const remainingSeconds = useDojoStore((s) => s.activeTimer?.remainingSeconds ?? 0);
 
+  // Build phases from custom duration (snapshot at mount time)
+  const phasesRef = useRef<Phase[]>(
+    buildScaledPhases(blockType, timerDurations[blockType] ?? DEFAULT_TIMER_DURATIONS[blockType])
+  );
+  const phases = phasesRef.current;
+
+  const accentColor: string = BLOCK_COLORS[blockType];
+  const blockTitle: string  = BLOCK_TITLES[blockType];
+
   // Local state
-  const [currentPhaseIndex, setCurrentPhaseIndex] = useState<number>(0);
-  const [isPaused, setIsPaused] = useState<boolean>(true);
-  const [isCompleted, setIsCompleted] = useState<boolean>(false);
+  const [currentPhaseIndex, setCurrentPhaseIndex]   = useState<number>(0);
+  const [isPaused, setIsPaused]                     = useState<boolean>(true);
+  const [isCompleted, setIsCompleted]               = useState<boolean>(false);
   const [showPhaseTransition, setShowPhaseTransition] = useState<boolean>(false);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Animation values
-  const progress = useSharedValue<number>(1);
-  const completionScale = useSharedValue<number>(0);
-  const completionOpacity = useSharedValue<number>(0);
+  const progress             = useSharedValue<number>(1);
+  const completionScale      = useSharedValue<number>(0);
+  const completionOpacity    = useSharedValue<number>(0);
   const phaseTransitionOpacity = useSharedValue<number>(0);
 
   const currentPhase: Phase = phases[currentPhaseIndex];
@@ -146,12 +182,10 @@ export default function TimerScreen() {
 
   // Initialize first phase on mount
   useEffect(() => {
-    startTimer(blockType, phases[0].name, phases[0].duration);
+    startTimerStore(blockType, phases[0].name, phases[0].duration);
     progress.value = 1;
     return () => {
-      if (intervalRef.current !== null) {
-        clearInterval(intervalRef.current);
-      }
+      if (intervalRef.current !== null) clearInterval(intervalRef.current);
       resetTimerStore();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -181,10 +215,7 @@ export default function TimerScreen() {
   useEffect(() => {
     const total = currentPhase.duration;
     const fraction = total > 0 ? remainingSeconds / total : 0;
-    progress.value = withTiming(fraction, {
-      duration: 900,
-      easing: Easing.linear,
-    });
+    progress.value = withTiming(fraction, { duration: 900, easing: Easing.linear });
   }, [remainingSeconds, currentPhase.duration, progress]);
 
   // Detect phase completion
@@ -199,65 +230,43 @@ export default function TimerScreen() {
     const nextIndex = currentPhaseIndex + 1;
 
     if (nextIndex >= totalPhases) {
-      // All phases done
       completeBlock(blockType);
       completeTimer();
       setIsCompleted(true);
-      completionScale.value = withSpring(1, { damping: 12, stiffness: 100 });
+      completionScale.value   = withSpring(1, { damping: 12, stiffness: 100 });
       completionOpacity.value = withTiming(1, { duration: 400 });
-
-      setTimeout(() => {
-        router.back();
-      }, 2500);
+      setTimeout(() => { router.back(); }, 2500);
     } else {
-      // Transition to next phase
       setShowPhaseTransition(true);
       phaseTransitionOpacity.value = withTiming(1, { duration: 300 });
 
       setTimeout(() => {
         setCurrentPhaseIndex(nextIndex);
         const nextPhase = phases[nextIndex];
-        startTimer(blockType, nextPhase.name, nextPhase.duration);
+        startTimerStore(blockType, nextPhase.name, nextPhase.duration);
         progress.value = 1;
-
         phaseTransitionOpacity.value = withTiming(0, { duration: 300 });
-        setTimeout(() => {
-          setShowPhaseTransition(false);
-        }, 350);
+        setTimeout(() => { setShowPhaseTransition(false); }, 350);
       }, 1500);
     }
   }, [
-    currentPhaseIndex,
-    totalPhases,
-    completeBlock,
-    completeTimer,
-    blockType,
-    phases,
-    startTimer,
-    progress,
-    completionScale,
-    completionOpacity,
-    phaseTransitionOpacity,
+    currentPhaseIndex, totalPhases, completeBlock, completeTimer,
+    blockType, phases, startTimerStore, progress,
+    completionScale, completionOpacity, phaseTransitionOpacity,
   ]);
 
   // Sync paused state with store
   useEffect(() => {
-    if (isPaused) {
-      pauseTimer();
-    } else {
-      resumeTimer();
-    }
+    if (isPaused) { pauseTimer(); } else { resumeTimer(); }
   }, [isPaused, pauseTimer, resumeTimer]);
 
-  const handlePlayPause = useCallback(() => {
-    setIsPaused((prev) => !prev);
-  }, []);
+  const handlePlayPause = useCallback(() => { setIsPaused((prev) => !prev); }, []);
 
   const handleReset = useCallback(() => {
     setIsPaused(true);
-    startTimer(blockType, currentPhase.name, currentPhase.duration);
+    startTimerStore(blockType, currentPhase.name, currentPhase.duration);
     progress.value = withTiming(1, { duration: 300 });
-  }, [blockType, currentPhase, startTimer, progress]);
+  }, [blockType, currentPhase, startTimerStore, progress]);
 
   const handleSkip = useCallback(() => {
     if (currentPhaseIndex < totalPhases - 1) {
@@ -265,10 +274,10 @@ export default function TimerScreen() {
       setCurrentPhaseIndex(nextIndex);
       setIsPaused(true);
       const nextPhase = phases[nextIndex];
-      startTimer(blockType, nextPhase.name, nextPhase.duration);
+      startTimerStore(blockType, nextPhase.name, nextPhase.duration);
       progress.value = withTiming(1, { duration: 300 });
     }
-  }, [currentPhaseIndex, totalPhases, phases, blockType, startTimer, progress]);
+  }, [currentPhaseIndex, totalPhases, phases, blockType, startTimerStore, progress]);
 
   const handleClose = useCallback(() => {
     resetTimerStore();
@@ -276,22 +285,23 @@ export default function TimerScreen() {
   }, [resetTimerStore]);
 
   // Animated props for progress ring
-  const animatedCircleProps = useAnimatedProps(() => {
-    return {
-      strokeDashoffset: CIRCUMFERENCE * (1 - progress.value),
-    };
-  });
+  const animatedCircleProps = useAnimatedProps(() => ({
+    strokeDashoffset: CIRCUMFERENCE * (1 - progress.value),
+  }));
 
-  // Completion animation styles
   const completionAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: completionScale.value }],
     opacity: completionOpacity.value,
   }));
 
-  // Phase transition styles
   const phaseTransitionStyle = useAnimatedStyle(() => ({
     opacity: phaseTransitionOpacity.value,
   }));
+
+  // Resolve instruction (simple mode uses gentler text)
+  const instruction = simpleMode
+    ? (SIMPLE_INSTRUCTIONS[blockType][currentPhaseIndex] ?? currentPhase.instruction)
+    : currentPhase.instruction;
 
   // --- Completion screen ---
   if (isCompleted) {
@@ -336,28 +346,14 @@ export default function TimerScreen() {
 
         {/* Circular progress */}
         <View style={styles.timerCircleWrapper}>
-          <Svg
-            width={CIRCLE_SIZE}
-            height={CIRCLE_SIZE}
-            viewBox={`0 0 ${CIRCLE_SIZE} ${CIRCLE_SIZE}`}
-          >
-            {/* Background circle */}
+          <Svg width={CIRCLE_SIZE} height={CIRCLE_SIZE} viewBox={`0 0 ${CIRCLE_SIZE} ${CIRCLE_SIZE}`}>
             <Circle
-              cx={CIRCLE_SIZE / 2}
-              cy={CIRCLE_SIZE / 2}
-              r={RADIUS}
-              stroke="rgba(255,255,255,0.08)"
-              strokeWidth={STROKE_WIDTH}
-              fill="transparent"
+              cx={CIRCLE_SIZE / 2} cy={CIRCLE_SIZE / 2} r={RADIUS}
+              stroke="rgba(255,255,255,0.08)" strokeWidth={STROKE_WIDTH} fill="transparent"
             />
-            {/* Progress circle */}
             <AnimatedCircle
-              cx={CIRCLE_SIZE / 2}
-              cy={CIRCLE_SIZE / 2}
-              r={RADIUS}
-              stroke={accentColor}
-              strokeWidth={STROKE_WIDTH}
-              fill="transparent"
+              cx={CIRCLE_SIZE / 2} cy={CIRCLE_SIZE / 2} r={RADIUS}
+              stroke={accentColor} strokeWidth={STROKE_WIDTH} fill="transparent"
               strokeDasharray={`${CIRCUMFERENCE}`}
               animatedProps={animatedCircleProps}
               strokeLinecap="round"
@@ -365,7 +361,6 @@ export default function TimerScreen() {
               origin={`${CIRCLE_SIZE / 2}, ${CIRCLE_SIZE / 2}`}
             />
           </Svg>
-          {/* Timer text overlay */}
           <View style={styles.timerTextOverlay}>
             <Text style={styles.timerText} testID="timer-display">
               {formatTime(remainingSeconds)}
@@ -377,16 +372,12 @@ export default function TimerScreen() {
         <Text style={[styles.phaseName, { color: accentColor }]} testID="timer-phase-name">
           {currentPhase.name}
         </Text>
-        <Text style={styles.phaseInstruction}>{currentPhase.instruction}</Text>
+        <Text style={styles.phaseInstruction}>{instruction}</Text>
       </View>
 
       {/* Bottom controls */}
       <View style={styles.bottomControls}>
-        <Pressable
-          onPress={handleReset}
-          style={styles.secondaryButton}
-          testID="timer-reset-button"
-        >
+        <Pressable onPress={handleReset} style={styles.secondaryButton} testID="timer-reset-button">
           <RotateCcw size={22} color="#AAAAAA" />
         </Pressable>
 
@@ -395,11 +386,7 @@ export default function TimerScreen() {
           style={[styles.playPauseButton, { backgroundColor: "#E8C547" }]}
           testID="timer-play-pause-button"
         >
-          {isPaused ? (
-            <Play size={32} color="#0A0A0F" />
-          ) : (
-            <Pause size={32} color="#0A0A0F" />
-          )}
+          {isPaused ? <Play size={32} color="#0A0A0F" /> : <Pause size={32} color="#0A0A0F" />}
         </Pressable>
 
         <Pressable
@@ -411,10 +398,7 @@ export default function TimerScreen() {
           disabled={currentPhaseIndex >= totalPhases - 1}
           testID="timer-skip-button"
         >
-          <SkipForward
-            size={22}
-            color={currentPhaseIndex >= totalPhases - 1 ? "#444444" : "#AAAAAA"}
-          />
+          <SkipForward size={22} color={currentPhaseIndex >= totalPhases - 1 ? "#444444" : "#AAAAAA"} />
         </Pressable>
       </View>
     </SafeAreaView>
@@ -424,132 +408,55 @@ export default function TimerScreen() {
 // --- Styles ---
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#0A0A0F",
-  },
+  container:      { flex: 1, backgroundColor: "#0A0A0F" },
   topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 20, paddingVertical: 12,
   },
   closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 40, height: 40, borderRadius: 20,
     backgroundColor: "rgba(255,255,255,0.1)",
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: "center", justifyContent: "center",
   },
-  blockTitle: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
-  phaseIndicator: {
-    fontSize: 14,
-    color: "rgba(255,255,255,0.5)",
-    minWidth: 40,
-    textAlign: "right",
-  },
+  blockTitle:    { fontSize: 17, fontWeight: "600", color: "#FFFFFF" },
+  phaseIndicator: { fontSize: 14, color: "rgba(255,255,255,0.5)", minWidth: 40, textAlign: "right" },
   centerContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 32,
+    flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32,
   },
   timerCircleWrapper: {
-    width: CIRCLE_SIZE,
-    height: CIRCLE_SIZE,
-    alignItems: "center",
-    justifyContent: "center",
+    width: CIRCLE_SIZE, height: CIRCLE_SIZE, alignItems: "center", justifyContent: "center",
   },
-  timerTextOverlay: {
-    position: "absolute",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  timerTextOverlay: { position: "absolute", alignItems: "center", justifyContent: "center" },
   timerText: {
-    fontSize: 48,
-    fontWeight: "200",
-    color: "#FFFFFF",
-    fontVariant: ["tabular-nums"],
+    fontSize: 48, fontWeight: "200", color: "#FFFFFF", fontVariant: ["tabular-nums"],
   },
-  phaseName: {
-    fontSize: 20,
-    fontWeight: "600",
-    marginTop: 32,
-    textAlign: "center",
-  },
+  phaseName:       { fontSize: 20, fontWeight: "600", marginTop: 32, textAlign: "center" },
   phaseInstruction: {
-    fontSize: 15,
-    color: "rgba(255,255,255,0.5)",
-    marginTop: 12,
-    textAlign: "center",
-    lineHeight: 22,
-    paddingHorizontal: 16,
+    fontSize: 15, color: "rgba(255,255,255,0.5)", marginTop: 12,
+    textAlign: "center", lineHeight: 22, paddingHorizontal: 16,
   },
   phaseTransitionOverlay: {
-    position: "absolute",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 10,
+    position: "absolute", alignItems: "center", justifyContent: "center", zIndex: 10,
   },
-  phaseTransitionText: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginTop: 12,
-  },
+  phaseTransitionText: { fontSize: 18, fontWeight: "600", marginTop: 12 },
   bottomControls: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingBottom: 40,
-    gap: 32,
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    paddingBottom: 40, gap: 32,
   },
   playPauseButton: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    alignItems: "center",
-    justifyContent: "center",
+    width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center",
   },
   secondaryButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 48, height: 48, borderRadius: 24,
     backgroundColor: "rgba(255,255,255,0.08)",
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: "center", justifyContent: "center",
   },
-  disabledButton: {
-    opacity: 0.4,
-  },
-  completionContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  disabledButton: { opacity: 0.4 },
+  completionContainer: { flex: 1, alignItems: "center", justifyContent: "center" },
   completionCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 3,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 24,
+    width: 120, height: 120, borderRadius: 60, borderWidth: 3,
+    alignItems: "center", justifyContent: "center", marginBottom: 24,
   },
-  completionTitle: {
-    fontSize: 28,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  completionSubtitle: {
-    fontSize: 16,
-    color: "rgba(255,255,255,0.5)",
-    marginTop: 8,
-    textAlign: "center",
-  },
+  completionTitle: { fontSize: 28, fontWeight: "700", textAlign: "center" },
+  completionSubtitle: { fontSize: 16, color: "rgba(255,255,255,0.5)", marginTop: 8, textAlign: "center" },
 });

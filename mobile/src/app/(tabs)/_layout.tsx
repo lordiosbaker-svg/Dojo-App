@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { BookOpen, PenLine, User } from 'lucide-react-native';
+import { BookOpen, PenLine, Settings } from 'lucide-react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 export default function TabLayout() {
@@ -52,9 +52,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Profile',
+          title: 'Settings',
           tabBarIcon: ({ color }: { color: string }) => (
-            <User size={24} color={color} />
+            <Settings size={24} color={color} />
           ),
         }}
       />

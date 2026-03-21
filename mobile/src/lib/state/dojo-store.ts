@@ -4,7 +4,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // --- Types ---
 
-type BlockType = "morning" | "midday" | "evening";
+export type BlockType = "morning" | "midday" | "evening";
+export type TextSize = "small" | "medium" | "large";
 
 interface ActiveTimer {
   blockType: BlockType;
@@ -27,6 +28,18 @@ interface JournalEntry {
   date: string;
 }
 
+export interface TimerDurations {
+  morning: number; // minutes
+  midday: number;
+  evening: number;
+}
+
+export const DEFAULT_TIMER_DURATIONS: TimerDurations = {
+  morning: 60,
+  midday: 10,
+  evening: 20,
+};
+
 // --- Store interface ---
 
 interface DojoState {
@@ -39,6 +52,11 @@ interface DojoState {
   longestStreak: number;
   lastCompletedDate: string | null;
   journalEntries: JournalEntry[];
+
+  // Preferences (persisted)
+  textSize: TextSize;
+  timerDurations: TimerDurations;
+  simpleMode: boolean;
 
   // Timer actions
   startTimer: (blockType: BlockType, phase: string, totalSeconds: number) => void;
@@ -57,6 +75,11 @@ interface DojoState {
   // Journal actions
   addJournalEntry: (text: string) => void;
   deleteJournalEntry: (id: string) => void;
+
+  // Preference actions
+  setTextSize: (size: TextSize) => void;
+  setTimerDuration: (block: BlockType, minutes: number) => void;
+  toggleSimpleMode: () => void;
 }
 
 // --- Helpers ---
@@ -86,6 +109,14 @@ function defaultDayBlocks(): DayBlocks {
   return { morning: false, midday: false, evening: false };
 }
 
+// --- Text size scale helper ---
+
+export const TEXT_SCALE: Record<TextSize, number> = {
+  small: 0.85,
+  medium: 1.0,
+  large: 1.2,
+};
+
 // --- Store ---
 
 export const useDojoStore = create<DojoState>()(
@@ -100,6 +131,11 @@ export const useDojoStore = create<DojoState>()(
       longestStreak: 0,
       lastCompletedDate: null,
       journalEntries: [],
+
+      // Preference defaults
+      textSize: "medium",
+      timerDurations: DEFAULT_TIMER_DURATIONS,
+      simpleMode: false,
 
       // Timer actions
       startTimer: (blockType, phase, totalSeconds) =>
@@ -209,6 +245,16 @@ export const useDojoStore = create<DojoState>()(
           ),
         });
       },
+
+      // Preference actions
+      setTextSize: (size) => set({ textSize: size }),
+
+      setTimerDuration: (block, minutes) => {
+        const { timerDurations } = get();
+        set({ timerDurations: { ...timerDurations, [block]: minutes } });
+      },
+
+      toggleSimpleMode: () => set({ simpleMode: !get().simpleMode }),
     }),
     {
       name: "dojo-storage",
@@ -219,6 +265,9 @@ export const useDojoStore = create<DojoState>()(
         longestStreak: state.longestStreak,
         lastCompletedDate: state.lastCompletedDate,
         journalEntries: state.journalEntries,
+        textSize: state.textSize,
+        timerDurations: state.timerDurations,
+        simpleMode: state.simpleMode,
       }),
     }
   )

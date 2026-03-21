@@ -4,20 +4,11 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
-  ACC_PAPER,
-  LEDGER_OVERVIEW,
-  PTSD_MAPPING,
-  DAILY_MANTRA,
-  HOW_AND_WHY_MANUAL,
-  GLOSSARY,
+  ACC_PAPER, LEDGER_OVERVIEW, PTSD_MAPPING, DAILY_MANTRA, HOW_AND_WHY_MANUAL, GLOSSARY,
 } from "@/lib/data/library-content";
-import type {
-  Paper,
-  LedgerOverview,
-  Mantra,
-  Glossary,
-} from "@/lib/data/library-content";
+import type { Paper, LedgerOverview, Mantra, Glossary } from "@/lib/data/library-content";
 import { useDojoStore, TEXT_SCALE } from "@/lib/state/dojo-store";
+import { useTranslation } from "@/lib/i18n";
 
 type ContentMap = Record<string, Paper | LedgerOverview | Mantra | Glossary>;
 
@@ -47,9 +38,10 @@ function hasSections(
 export default function ReaderScreen() {
   const { contentKey } = useLocalSearchParams<{ contentKey: string }>();
   const content  = contentKey ? CONTENT_MAP[contentKey] : undefined;
-  const textSize = useDojoStore((s) => s.textSize);
+  const textSize   = useDojoStore((s) => s.textSize);
   const simpleMode = useDojoStore((s) => s.simpleMode);
-  const scale    = TEXT_SCALE[textSize];
+  const scale      = TEXT_SCALE[textSize];
+  const t          = useTranslation();
 
   const BackBar = ({ title }: { title: string }) => (
     <View style={{ flexDirection: "row", alignItems: "center", padding: 16, paddingBottom: 8 }}>
@@ -148,24 +140,19 @@ export default function ReaderScreen() {
 
           {/* Simple mode banner */}
           {simpleMode ? (
-            <View
-              style={{
-                backgroundColor: "rgba(232,197,71,0.12)",
-                borderRadius: 10,
-                borderWidth: 1,
-                borderColor: "rgba(232,197,71,0.3)",
-                padding: 12,
-                marginBottom: 20,
-              }}
-            >
+            <View style={{ backgroundColor: "rgba(232,197,71,0.12)", borderRadius: 10, borderWidth: 1, borderColor: "rgba(232,197,71,0.3)", padding: 12, marginBottom: 20 }}>
               <Text style={{ color: "#E8C547", fontSize: 12 * scale, fontWeight: "600" }}>
-                Simple Mode — showing beginner-friendly definitions
+                {t.glossary.simpleModeBanner}
               </Text>
             </View>
           ) : null}
 
-          {/* Glossary entries */}
-          {content.entries.map((entry, index) => (
+          {/* Glossary entries — use translated terms/simple if available */}
+          {content.entries.map((entry, _index) => {
+            const tEntry = t.glossary.entries.find((e) => e.term === entry.term);
+            const displayTerm   = tEntry?.term   ?? entry.term;
+            const displaySimple = tEntry?.simple ?? entry.simple;
+            return (
             <View
               key={entry.term}
               style={{
@@ -215,7 +202,8 @@ export default function ReaderScreen() {
                 </>
               )}
             </View>
-          ))}
+            );
+          })}
 
           <View style={{ height: 40 }} />
         </ScrollView>

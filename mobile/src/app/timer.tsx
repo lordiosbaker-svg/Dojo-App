@@ -18,6 +18,7 @@ import Animated, {
 import Svg, { Circle } from "react-native-svg";
 import { X, Play, Pause, SkipForward, RotateCcw, Check } from "lucide-react-native";
 import { useDojoStore, DEFAULT_TIMER_DURATIONS } from "@/lib/state/dojo-store";
+import { useTranslation } from "@/lib/i18n";
 
 // --- Types ---
 
@@ -145,6 +146,7 @@ export default function TimerScreen() {
   // Store
   const timerDurations = useDojoStore((s) => s.timerDurations);
   const simpleMode     = useDojoStore((s) => s.simpleMode);
+  const t = useTranslation();
   const startTimerStore  = useDojoStore((s) => s.startTimer);
   const tickTimer        = useDojoStore((s) => s.tickTimer);
   const pauseTimer       = useDojoStore((s) => s.pauseTimer);
@@ -161,7 +163,7 @@ export default function TimerScreen() {
   const phases = phasesRef.current;
 
   const accentColor: string = BLOCK_COLORS[blockType];
-  const blockTitle: string  = BLOCK_TITLES[blockType];
+  const blockTitle: string  = t.timer.blocks[blockType];
 
   // Local state
   const [currentPhaseIndex, setCurrentPhaseIndex]   = useState<number>(0);
@@ -299,9 +301,12 @@ export default function TimerScreen() {
   }));
 
   // Resolve instruction (simple mode uses gentler text)
+  const tPhases = t.timer.phases[blockType];
+  const tSimple = t.timer.simpleInstructions[blockType];
+  const phaseName = tPhases[currentPhaseIndex]?.name ?? currentPhase.name;
   const instruction = simpleMode
-    ? (SIMPLE_INSTRUCTIONS[blockType][currentPhaseIndex] ?? currentPhase.instruction)
-    : currentPhase.instruction;
+    ? (tSimple[currentPhaseIndex] ?? tPhases[currentPhaseIndex]?.instruction ?? currentPhase.instruction)
+    : (tPhases[currentPhaseIndex]?.instruction ?? currentPhase.instruction);
 
   // --- Completion screen ---
   if (isCompleted) {
@@ -312,8 +317,8 @@ export default function TimerScreen() {
             <Check size={64} color={accentColor} />
           </Animated.View>
           <Animated.View style={completionAnimatedStyle}>
-            <Text style={[styles.completionTitle, { color: accentColor }]}>Block Complete!</Text>
-            <Text style={styles.completionSubtitle}>{blockTitle} finished</Text>
+            <Text style={[styles.completionTitle, { color: accentColor }]}>{t.timer.blockComplete}</Text>
+            <Text style={styles.completionSubtitle}>{blockTitle} {t.timer.finished}</Text>
           </Animated.View>
         </View>
       </SafeAreaView>
@@ -340,7 +345,7 @@ export default function TimerScreen() {
         {showPhaseTransition ? (
           <Animated.View style={[styles.phaseTransitionOverlay, phaseTransitionStyle]}>
             <Check size={40} color={accentColor} />
-            <Text style={[styles.phaseTransitionText, { color: accentColor }]}>Phase Complete</Text>
+            <Text style={[styles.phaseTransitionText, { color: accentColor }]}>{t.timer.phaseComplete}</Text>
           </Animated.View>
         ) : null}
 
@@ -370,7 +375,7 @@ export default function TimerScreen() {
 
         {/* Phase info */}
         <Text style={[styles.phaseName, { color: accentColor }]} testID="timer-phase-name">
-          {currentPhase.name}
+          {phaseName}
         </Text>
         <Text style={styles.phaseInstruction}>{instruction}</Text>
       </View>

@@ -6,6 +6,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export type BlockType = "morning" | "midday" | "evening";
 export type TextSize = "small" | "medium" | "large";
+export type Language = "en" | "es" | "fr" | "de" | "pt" | "ar";
+
+export function detectLanguage(): Language {
+  if (typeof navigator === "undefined") return "en";
+  const nav = (navigator.language ?? "en").split("-")[0].toLowerCase();
+  const supported: Language[] = ["en", "es", "fr", "de", "pt", "ar"];
+  return supported.includes(nav as Language) ? (nav as Language) : "en";
+}
 
 interface ActiveTimer {
   blockType: BlockType;
@@ -57,6 +65,7 @@ interface DojoState {
   textSize: TextSize;
   timerDurations: TimerDurations;
   simpleMode: boolean;
+  language: Language;
 
   // Timer actions
   startTimer: (blockType: BlockType, phase: string, totalSeconds: number) => void;
@@ -80,6 +89,7 @@ interface DojoState {
   setTextSize: (size: TextSize) => void;
   setTimerDuration: (block: BlockType, minutes: number) => void;
   toggleSimpleMode: () => void;
+  setLanguage: (lang: Language) => void;
 }
 
 // --- Helpers ---
@@ -136,6 +146,7 @@ export const useDojoStore = create<DojoState>()(
       textSize: "medium",
       timerDurations: DEFAULT_TIMER_DURATIONS,
       simpleMode: false,
+      language: detectLanguage(),
 
       // Timer actions
       startTimer: (blockType, phase, totalSeconds) =>
@@ -255,6 +266,8 @@ export const useDojoStore = create<DojoState>()(
       },
 
       toggleSimpleMode: () => set({ simpleMode: !get().simpleMode }),
+
+      setLanguage: (lang) => set({ language: lang }),
     }),
     {
       name: "dojo-storage",
@@ -268,6 +281,7 @@ export const useDojoStore = create<DojoState>()(
         textSize: state.textSize,
         timerDurations: state.timerDurations,
         simpleMode: state.simpleMode,
+        language: state.language,
       }),
     }
   )

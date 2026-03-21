@@ -13,6 +13,7 @@ import {
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { useDojoStore, TEXT_SCALE } from '@/lib/state/dojo-store';
+import { useTranslation } from '@/lib/i18n';
 
 interface LibraryItem {
   title: string;
@@ -69,6 +70,8 @@ function LibraryCard({ item }: { item: LibraryItem }) {
   const accent = item.accent ?? '#E8C547';
   const textSize = useDojoStore((s) => s.textSize);
   const scale = TEXT_SCALE[textSize];
+  const t = useTranslation();
+  const itemT = t.library.items[item.contentKey];
 
   const handlePressIn = useCallback(() => {
     RNAnimated.spring(scaleAnim, {
@@ -122,12 +125,12 @@ function LibraryCard({ item }: { item: LibraryItem }) {
               className="font-semibold mb-1"
               style={{ color: '#E8E8F0', fontSize: 15 * scale }}
             >
-              {item.title}
+              {itemT?.title ?? item.title}
             </Text>
             <Text
               style={{ color: '#8888A0', fontSize: 13 * scale }}
             >
-              {item.description}
+              {itemT?.description ?? item.description}
             </Text>
           </View>
 
@@ -144,6 +147,7 @@ function LibraryCard({ item }: { item: LibraryItem }) {
 export default function LibraryScreen() {
   const textSize = useDojoStore((s) => s.textSize);
   const scale = TEXT_SCALE[textSize];
+  const t = useTranslation();
 
   return (
     <SafeAreaView
@@ -158,7 +162,7 @@ export default function LibraryScreen() {
           className="font-bold ml-3"
           style={{ color: '#E8E8F0', fontSize: 28 * scale }}
         >
-          Library
+          {t.library.header}
         </Text>
       </View>
 

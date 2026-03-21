@@ -6,23 +6,16 @@ import {
   FlatList,
   Pressable,
   Share,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Keyboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BookOpen, Share2, Send, Trash2 } from "lucide-react-native";
-import { useDojoStore, getEntriesForDate } from "@/lib/state/dojo-store";
-
-// --- Constants ---
-
-const ERN_PROMPTS: string[] = [
-  "What arose? Name it. Accept it. Breathe longer on exhale.",
-  "What error signal did you notice? How did you respond?",
-  "What triggered your reaction? Can you observe it without judgment?",
-  "Where did you feel the signal in your body?",
-];
+import { BookOpen, Share2, Send, Trash2, Mic, MicOff } from "lucide-react-native";
+import { useDojoStore, getEntriesForDate, TEXT_SCALE } from "@/lib/state/dojo-store";
+import { useTranslation } from "@/lib/i18n";
+import { LANGUAGE_SPEECH_CODE } from "@/lib/i18n/translations";
+import { useSpeechRecognition } from "@/lib/hooks/useSpeechRecognition";
 
 const COLORS = {
   bg: "#0A0A0F",
@@ -34,8 +27,6 @@ const COLORS = {
   inputBg: "#1C1C2E",
 } as const;
 
-// --- Helpers ---
-
 function formatTime(timestamp: number): string {
   const date = new Date(timestamp);
   const hours = date.getHours();
@@ -46,113 +37,108 @@ function formatTime(timestamp: number): string {
   return `${displayHours}:${displayMinutes} ${ampm}`;
 }
 
-function formatDateLabel(dateKey: string): string {
-  const today = new Date();
-  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, "0")}-${String(yesterday.getDate()).padStart(2, "0")}`;
-
-  if (dateKey === todayKey) return "Today";
-  if (dateKey === yesterdayKey) return "Yesterday";
-
+function formatDateLabel(dateKey: string, today: string, yesterday: string): string {
+  const nowDate = new Date();
+  const todayKey = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, "0")}-${String(nowDate.getDate()).padStart(2, "0")}`;
+  const yest = new Date();
+  yest.setDate(yest.getDate() - 1);
+  const yesterdayKey = `${yest.getFullYear()}-${String(yest.getMonth() + 1).padStart(2, "0")}-${String(yest.getDate()).padStart(2, "0")}`;
+  if (dateKey === todayKey) return today;
+  if (dateKey === yesterdayKey) return yesterday;
   const [year, month, day] = dateKey.split("-");
   const d = new Date(Number(year), Number(month) - 1, Number(day));
-  return d.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
+  return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 }
-
-// --- Types ---
 
 interface DateGroup {
   date: string;
   label: string;
-  entries: Array<{
-    id: string;
-    text: string;
-    timestamp: number;
-    date: string;
-  }>;
+  entries: Array<{ id: string; text: string; timestamp: number; date: string }>;
 }
 
-// --- Component ---
-
 export default function JournalScreen() {
-  const [inputText, setInputText] = useState<string>("");
+  const t = useTranslation();
+  const language = useDojoStore((s) => s.language);
+  const textSize  = useDojoStore((s) => s.textSize);
+  const scale     = TEXT_SCALE[textSize];
+
+  const [inputText, setInputText]     = useState<string>("");
   const [promptIndex, setPromptIndex] = useState<number>(0);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
-  const journalEntries = useDojoStore((s) => s.journalEntries);
+  const journalEntries  = useDojoStore((s) => s.journalEntries);
   const addJournalEntry = useDojoStore((s) => s.addJournalEntry);
   const deleteJournalEntry = useDojoStore((s) => s.deleteJournalEntry);
 
-  // Auto-rotate ERN prompts every 10 seconds
+  // Speech recognition
+  const speech = useSpeechRecognition();
+
+  // Merge live transcript into input
+  useEffect(() => {
+    const combined = [speech.transcript, speech.interimTranscript].filter(Boolean).join(" ");
+    if (combined) setInputText(combined);
+  }, [speech.transcript, speech.interimTranscript]);
+
+  // Auto-rotate prompts
   useEffect(() => {
     const interval = setInterval(() => {
-      setPromptIndex((prev) => (prev + 1) % ERN_PROMPTS.length);
+      setPromptIndex((prev) => (prev + 1) % t.journal.prompts.length);
     }, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [t.journal.prompts.length]);
 
   const cyclePrompt = useCallback(() => {
-    setPromptIndex((prev) => (prev + 1) % ERN_PROMPTS.length);
-  }, []);
+    setPromptIndex((prev) => (prev + 1) % t.journal.prompts.length);
+  }, [t.journal.prompts.length]);
 
   const handleSubmit = useCallback(() => {
     const trimmed = inputText.trim();
     if (trimmed.length === 0) return;
+    if (speech.isListening) speech.stop();
+    speech.reset();
     addJournalEntry(trimmed);
     setInputText("");
     Keyboard.dismiss();
-  }, [inputText, addJournalEntry]);
+  }, [inputText, addJournalEntry, speech]);
 
-  const handleDelete = useCallback(
-    (id: string) => {
-      deleteJournalEntry(id);
-      setDeleteTargetId(null);
-    },
-    [deleteJournalEntry]
-  );
+  const handleMicToggle = useCallback(() => {
+    if (speech.isListening) {
+      speech.stop();
+    } else {
+      speech.reset();
+      setInputText("");
+      speech.start(LANGUAGE_SPEECH_CODE[language]);
+    }
+  }, [speech, language]);
+
+  const handleDelete = useCallback((id: string) => {
+    deleteJournalEntry(id);
+    setDeleteTargetId(null);
+  }, [deleteJournalEntry]);
 
   const handleExport = useCallback(async () => {
     if (journalEntries.length === 0) return;
-
     const lines = journalEntries
       .slice()
       .sort((a, b) => b.timestamp - a.timestamp)
       .map((entry) => {
-        const dateLabel = formatDateLabel(entry.date);
-        const time = formatTime(entry.timestamp);
-        return `[${dateLabel} ${time}] ${entry.text}`;
+        const dateLabel = formatDateLabel(entry.date, t.journal.today, t.journal.yesterday);
+        return `[${dateLabel} ${formatTime(entry.timestamp)}] ${entry.text}`;
       });
-
     const content = `Dojo Journal Export\n${"=".repeat(30)}\n\n${lines.join("\n\n")}`;
+    try { await Share.share({ message: content }); } catch { /* user cancelled */ }
+  }, [journalEntries, t.journal.today, t.journal.yesterday]);
 
-    try {
-      await Share.share({ message: content });
-    } catch {
-      // User cancelled or share failed silently
-    }
-  }, [journalEntries]);
-
-  // Group entries by date, sorted newest first
   const groupedEntries = useMemo<DateGroup[]>(() => {
     const dateSet = new Set<string>();
     journalEntries.forEach((e) => dateSet.add(e.date));
     const dates = Array.from(dateSet).sort((a, b) => b.localeCompare(a));
-
     return dates.map((date) => ({
       date,
-      label: formatDateLabel(date),
-      entries: getEntriesForDate(journalEntries, date).sort(
-        (a, b) => b.timestamp - a.timestamp
-      ),
+      label: formatDateLabel(date, t.journal.today, t.journal.yesterday),
+      entries: getEntriesForDate(journalEntries, date).sort((a, b) => b.timestamp - a.timestamp),
     }));
-  }, [journalEntries]);
+  }, [journalEntries, t.journal.today, t.journal.yesterday]);
 
   const renderEntry = useCallback(
     (item: DateGroup["entries"][number]) => {
@@ -162,33 +148,13 @@ export default function JournalScreen() {
           key={item.id}
           testID={`journal-entry-${item.id}`}
           onLongPress={() => setDeleteTargetId(item.id)}
-          style={{
-            backgroundColor: COLORS.card,
-            borderColor: COLORS.cardBorder,
-            borderWidth: 1,
-            borderRadius: 12,
-            padding: 14,
-            marginBottom: 10,
-          }}
+          style={{ backgroundColor: COLORS.card, borderColor: COLORS.cardBorder, borderWidth: 1, borderRadius: 12, padding: 14, marginBottom: 10 }}
         >
-          <Text
-            style={{
-              color: COLORS.textPrimary,
-              fontSize: 15,
-              lineHeight: 22,
-            }}
-          >
+          <Text style={{ color: COLORS.textPrimary, fontSize: 15 * scale, lineHeight: 22 * scale }}>
             {item.text}
           </Text>
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginTop: 8,
-            }}
-          >
-            <Text style={{ color: COLORS.textMuted, fontSize: 12 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+            <Text style={{ color: COLORS.textMuted, fontSize: 12 * scale }}>
               {formatTime(item.timestamp)}
             </Text>
             {isDeleteTarget ? (
@@ -196,33 +162,17 @@ export default function JournalScreen() {
                 <Pressable
                   testID={`confirm-delete-${item.id}`}
                   onPress={() => handleDelete(item.id)}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 4,
-                    backgroundColor: "#3D1515",
-                    paddingHorizontal: 10,
-                    paddingVertical: 4,
-                    borderRadius: 8,
-                  }}
+                  style={{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#3D1515", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}
                 >
                   <Trash2 size={14} color="#FF6B6B" />
-                  <Text style={{ color: "#FF6B6B", fontSize: 12 }}>
-                    Delete
-                  </Text>
+                  <Text style={{ color: "#FF6B6B", fontSize: 12 * scale }}>{t.journal.del}</Text>
                 </Pressable>
                 <Pressable
                   testID={`cancel-delete-${item.id}`}
                   onPress={() => setDeleteTargetId(null)}
-                  style={{
-                    paddingHorizontal: 10,
-                    paddingVertical: 4,
-                    borderRadius: 8,
-                  }}
+                  style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}
                 >
-                  <Text style={{ color: COLORS.textMuted, fontSize: 12 }}>
-                    Cancel
-                  </Text>
+                  <Text style={{ color: COLORS.textMuted, fontSize: 12 * scale }}>{t.journal.cancel}</Text>
                 </Pressable>
               </View>
             ) : null}
@@ -230,205 +180,139 @@ export default function JournalScreen() {
         </Pressable>
       );
     },
-    [deleteTargetId, handleDelete]
+    [deleteTargetId, handleDelete, scale, t.journal]
   );
 
   const renderDateGroup = useCallback(
     ({ item }: { item: DateGroup }) => (
       <View style={{ marginBottom: 16 }}>
-        <Text
-          style={{
-            color: COLORS.textMuted,
-            fontSize: 13,
-            fontWeight: "600",
-            textTransform: "uppercase",
-            letterSpacing: 1,
-            marginBottom: 10,
-            paddingHorizontal: 2,
-          }}
-        >
+        <Text style={{ color: COLORS.textMuted, fontSize: 13 * scale, fontWeight: "600", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10, paddingHorizontal: 2 }}>
           {item.label}
         </Text>
         {item.entries.map(renderEntry)}
       </View>
     ),
-    [renderEntry]
+    [renderEntry, scale]
   );
 
-  const listEmptyComponent = useMemo(
-    () => (
-      <View
-        testID="journal-empty-state"
-        style={{ alignItems: "center", paddingTop: 60 }}
-      >
-        <BookOpen size={48} color={COLORS.textMuted} />
-        <Text
-          style={{
-            color: COLORS.textMuted,
-            fontSize: 15,
-            textAlign: "center",
-            marginTop: 16,
-            lineHeight: 22,
-            paddingHorizontal: 32,
-          }}
-        >
-          No journal entries yet.{"\n"}Start by logging what arises.
-        </Text>
-      </View>
-    ),
-    []
-  );
+  const listEmptyComponent = useMemo(() => (
+    <View testID="journal-empty-state" style={{ alignItems: "center", paddingTop: 60 }}>
+      <BookOpen size={48} color={COLORS.textMuted} />
+      <Text style={{ color: COLORS.textMuted, fontSize: 15 * scale, textAlign: "center", marginTop: 16, lineHeight: 22 * scale, paddingHorizontal: 32 }}>
+        {t.journal.emptyTitle}{"\n"}{t.journal.emptyBody}
+      </Text>
+    </View>
+  ), [scale, t.journal.emptyTitle, t.journal.emptyBody]);
+
+  const micAvailable = speech.isSupported;
+  const isActive = inputText.trim().length > 0;
 
   return (
-    <SafeAreaView
-      testID="journal-screen"
-      style={{ flex: 1, backgroundColor: COLORS.bg }}
-      edges={["top"]}
-    >
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={0}
-      >
+    <SafeAreaView testID="journal-screen" style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top"]}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={0}>
         {/* Header */}
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            paddingHorizontal: 20,
-            paddingTop: 8,
-            paddingBottom: 16,
-          }}
-        >
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
             <BookOpen size={24} color={COLORS.accent} />
-            <Text
-              style={{
-                color: COLORS.textPrimary,
-                fontSize: 28,
-                fontWeight: "700",
-              }}
-            >
-              Journal
+            <Text style={{ color: COLORS.textPrimary, fontSize: 28 * scale, fontWeight: "700" }}>
+              {t.journal.header}
             </Text>
           </View>
           <Pressable
             testID="export-button"
             onPress={handleExport}
-            style={{
-              padding: 10,
-              borderRadius: 12,
-              backgroundColor: COLORS.card,
-              opacity: journalEntries.length > 0 ? 1 : 0.4,
-            }}
+            style={{ padding: 10, borderRadius: 12, backgroundColor: COLORS.card, opacity: journalEntries.length > 0 ? 1 : 0.4 }}
             disabled={journalEntries.length === 0}
           >
             <Share2 size={20} color={COLORS.textPrimary} />
           </Pressable>
         </View>
 
-        {/* Quick Entry Input */}
+        {/* Input area */}
         <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              backgroundColor: COLORS.inputBg,
-              borderColor: COLORS.cardBorder,
-              borderWidth: 1,
-              borderRadius: 14,
-              paddingHorizontal: 14,
-              paddingVertical: 4,
-            }}
-          >
+          {/* Listening indicator */}
+          {speech.isListening ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6, paddingHorizontal: 4 }}>
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#FF6B6B" }} />
+              <Text style={{ color: "#FF6B6B", fontSize: 12 * scale, fontWeight: "600" }}>
+                {t.journal.mic.listening}
+              </Text>
+            </View>
+          ) : null}
+
+          {/* Not-supported warning */}
+          {!speech.isSupported && Platform.OS === "web" ? (
+            <Text style={{ color: COLORS.textMuted, fontSize: 11 * scale, marginBottom: 6, paddingHorizontal: 4 }}>
+              {t.journal.mic.notSupported}
+            </Text>
+          ) : null}
+
+          <View style={{
+            flexDirection: "row", alignItems: "center",
+            backgroundColor: COLORS.inputBg, borderColor: speech.isListening ? "#FF6B6B" : COLORS.cardBorder,
+            borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 4,
+          }}>
             <TextInput
               testID="journal-input"
               value={inputText}
-              onChangeText={setInputText}
-              placeholder="What arose? Name it. Accept it."
+              onChangeText={(text) => { if (!speech.isListening) setInputText(text); }}
+              placeholder={speech.isListening ? t.journal.mic.listening : t.journal.placeholder}
               placeholderTextColor={COLORS.textMuted}
               multiline
               maxLength={500}
-              returnKeyType="default"
-              style={{
-                flex: 1,
-                color: COLORS.textPrimary,
-                fontSize: 15,
-                paddingVertical: 12,
-                maxHeight: 100,
-              }}
+              style={{ flex: 1, color: COLORS.textPrimary, fontSize: 15 * scale, paddingVertical: 12, maxHeight: 100 }}
             />
+
+            {/* Mic button (web only or always render but disable on native) */}
+            {micAvailable ? (
+              <Pressable
+                testID="mic-button"
+                onPress={handleMicToggle}
+                style={{
+                  borderRadius: 10, padding: 10, marginLeft: 6,
+                  backgroundColor: speech.isListening ? "#FF6B6B" : COLORS.cardBorder,
+                }}
+                accessibilityLabel={speech.isListening ? t.journal.mic.stop : t.journal.mic.start}
+              >
+                {speech.isListening
+                  ? <MicOff size={18} color="#FFFFFF" />
+                  : <Mic size={18} color={COLORS.textMuted} />}
+              </Pressable>
+            ) : null}
+
+            {/* Send button */}
             <Pressable
               testID="log-button"
               onPress={handleSubmit}
               style={{
-                backgroundColor:
-                  inputText.trim().length > 0 ? COLORS.accent : COLORS.cardBorder,
-                borderRadius: 10,
-                padding: 10,
-                marginLeft: 10,
+                backgroundColor: isActive ? COLORS.accent : COLORS.cardBorder,
+                borderRadius: 10, padding: 10, marginLeft: 6,
               }}
-              disabled={inputText.trim().length === 0}
+              disabled={!isActive}
             >
-              <Send
-                size={18}
-                color={
-                  inputText.trim().length > 0 ? "#0A0A0F" : COLORS.textMuted
-                }
-              />
+              <Send size={18} color={isActive ? "#0A0A0F" : COLORS.textMuted} />
             </Pressable>
           </View>
         </View>
 
-        {/* ERN Prompt Card */}
+        {/* ERN Prompt */}
         <Pressable
           testID="ern-prompt-card"
           onPress={cyclePrompt}
-          style={{
-            marginHorizontal: 20,
-            marginBottom: 16,
-            backgroundColor: COLORS.card,
-            borderColor: COLORS.cardBorder,
-            borderWidth: 1,
-            borderRadius: 14,
-            padding: 16,
-          }}
+          style={{ marginHorizontal: 20, marginBottom: 16, backgroundColor: COLORS.card, borderColor: COLORS.cardBorder, borderWidth: 1, borderRadius: 14, padding: 16 }}
         >
-          <Text
-            style={{
-              color: COLORS.accent,
-              fontSize: 12,
-              fontWeight: "700",
-              textTransform: "uppercase",
-              letterSpacing: 1,
-              marginBottom: 8,
-            }}
-          >
-            ERN Reflection Prompts
+          <Text style={{ color: COLORS.accent, fontSize: 12 * scale, fontWeight: "700", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
+            {t.journal.ernHeader}
           </Text>
-          <Text
-            style={{
-              color: COLORS.textPrimary,
-              fontSize: 14,
-              lineHeight: 20,
-              fontStyle: "italic",
-            }}
-          >
-            {ERN_PROMPTS[promptIndex]}
+          <Text style={{ color: COLORS.textPrimary, fontSize: 14 * scale, lineHeight: 20 * scale, fontStyle: "italic" }}>
+            {t.journal.prompts[promptIndex % t.journal.prompts.length]}
           </Text>
-          <Text
-            style={{
-              color: COLORS.textMuted,
-              fontSize: 11,
-              marginTop: 8,
-            }}
-          >
-            Tap to see another prompt
+          <Text style={{ color: COLORS.textMuted, fontSize: 11 * scale, marginTop: 8 }}>
+            {t.journal.tapPrompt}
           </Text>
         </Pressable>
 
-        {/* Journal Entries List */}
+        {/* Entries */}
         <FlatList
           testID="journal-entries-list"
           data={groupedEntries}

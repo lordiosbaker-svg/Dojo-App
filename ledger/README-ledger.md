@@ -2,14 +2,15 @@
 
 Consolidated externalization of the full HOS pre-alignment framework.
 
-Built under 24/7 unpaid palliative care (6+ months) while maintaining marine-electrician precision.
+Built under 24/7 unpaid palliative care while maintaining marine-electrician precision.
 
-**Timeline:**
-- October 2025: First AI interaction → full 11-page ACC paper in 3 days
-- Next 5 months: Iterative development of Ledger V3.0, Starship SERP Console, OperatorDojo, IRCS, Creighton Overlay
+**Key Milestones:**
+- October 2025: First AI interaction → full 11-page ACC paper written in 3 days
+- January 31, 2026: V3.0 Edwardian Synthesis Ledger Consolidation released
+- 5 months total iteration → live Starship SERP Console + OperatorDojo
 
-**Purpose:** Provide a calibrated, fault-tolerant Human Operating System (HOS) for individuals (especially aphantasia + no inner monologue) and species-scale operations (Starship, multi-planetary homeostasis).
+This folder contains the complete, version-controlled record of the ACC/SERP/HOS framework.
 
-Live console: https://vibecode.dev/workspace/019d (Starship SERP Console)
+Live console available at: https://vibecode.dev/workspace/019d
 
-Clone, test, calibrate. Brutal criticism and collaboration welcome.
+Clone, test, calibrate, and provide brutal criticism.

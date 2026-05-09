@@ -1,5 +1,3 @@
-**Ledger V3.0 Consolidated**
+V3.0 Edwardian Synthesis Ledger Consolidation (January 31, 2026)
 
-Edwardian Synthesis Ledger - Species-level homeostasis via ACC/SERP framework.
-
-Key themes: HOS pre-alignment before AGI alignment, fault-tolerant operator tools, multi-planetary coherence.
+[Full content of the main post + all self-replies from the January 31 thread inserted here for complete record.]
